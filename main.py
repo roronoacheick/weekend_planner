@@ -2,6 +2,7 @@ from agents.analysis_agent import analyze_user_request
 from agents.budget_agent import compute_budget_allocation
 from agents.weather_agent import summarize_weather_for_swimming
 from agents.activities_agent import suggest_activities_for_weekend
+from agents.lodging_agent import suggest_lodgings_for_activities
 
 
 def main() -> None:
@@ -44,6 +45,27 @@ def main() -> None:
             print(
                 f"- {activity['name']} "
                 f"({activity['type']}) ~ {activity['price_estimate']}€"
+            )
+
+    # Agent 5 : Logements possibles proches des activités
+    lodgings = suggest_lodgings_for_activities(
+        activities=activities,
+        budget_allocation=budget_allocation,
+        max_results_per_activity=2,
+    )
+
+    print("\nLogements suggérés :")
+    if not lodgings:
+        print("- Aucun logement trouvé avec ce budget pour les activités proposées.")
+    else:
+        for lodging in lodgings:
+            print(
+                f"- Pour l'activité '{lodging['for_activity']}' : "
+                f"{lodging['lodging_name']} à {lodging['city']} "
+                f"({lodging['platform']}), "
+                f"{lodging['price_per_night']}€/nuit x {lodging['nights']} nuit(s) "
+                f"= {lodging['total_price']}€ "
+                f"[note {lodging['rating']}]"
             )
 
 
