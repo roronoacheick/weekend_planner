@@ -3,6 +3,7 @@ from agents.budget_agent import compute_budget_allocation
 from agents.weather_agent import summarize_weather_for_swimming
 from agents.activities_agent import suggest_activities_for_weekend
 from agents.lodging_agent import suggest_lodgings_for_activities
+from agents.scenario_agent import build_scenarios
 
 
 def main() -> None:
@@ -66,6 +67,34 @@ def main() -> None:
                 f"{lodging['price_per_night']}€/nuit x {lodging['nights']} nuit(s) "
                 f"= {lodging['total_price']}€ "
                 f"[note {lodging['rating']}]"
+            )
+
+    # Agent 6 : Construction de scénarios complets
+    scenarios = build_scenarios(
+        constraints=constraints,
+        budget_allocation=budget_allocation,
+        activities=activities,
+        lodgings=lodgings,
+        max_scenarios=3,
+    )
+
+    print("\nScénarios proposés :")
+    if not scenarios:
+        print("- Aucun scénario complet possible avec ce budget et ces contraintes.")
+    else:
+        for scenario in scenarios:
+            details = scenario["details"]
+            print(f"\n{scenario['label']} (≈ {scenario['total_cost_estimate']}€)")
+            print(
+                f"  - Activité : {details['activity_name']} "
+                f"({details['activity_type']}) ~ {details['activity_price']}€"
+            )
+            print(
+                f"  - Logement : {details['lodging_name']} à {details['lodging_city']} "
+                f"({details['lodging_platform']}) ~ {details['lodging_total']}€"
+            )
+            print(
+                f"  - Transport estimé : {details['transport_estimate']}€"
             )
 
 
