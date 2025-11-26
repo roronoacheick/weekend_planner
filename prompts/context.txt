@@ -1,0 +1,6 @@
+Contexte du projet :
+
+- Cible : étudiants à Paris, avec petits budgets (souvent < 200€).
+- Période : week-ends ou petites sorties.
+- Objectif : proposer 2 à 3 options classées du moins cher au plus cher.
+- Priorités : accessibilité en transports en commun, activités fun, coût global maîtrisé.
