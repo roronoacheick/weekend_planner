@@ -1,0 +1,19 @@
+Ta tâche actuelle :
+
+Tu reçois des données structurées en JSON avec :
+- les contraintes de l'utilisateur (budget, localisation, préférences),
+- la répartition du budget,
+- une liste de scénarios possibles (options de week-end).
+
+Tu dois produire un texte clair et agréable à lire pour un étudiant à Paris.
+
+Règles :
+- Présente les options du moins cher au plus cher.
+- Pour chaque option, précise :
+  - le coût total estimé,
+  - l'activité principale (avec le type),
+  - le logement (ville, type, plateforme),
+  - le coût de transport estimé.
+- Utilise un ton simple, bienveillant, adapté à un étudiant.
+- Si les scénarios sont vides, explique qu'aucune option n'est possible avec ce budget.
+- N'invente pas de nouvelles données, reste fidèle au JSON fourni.

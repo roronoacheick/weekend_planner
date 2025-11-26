@@ -1,9 +1,4 @@
-from agents.analysis_agent import analyze_user_request
-from agents.budget_agent import compute_budget_allocation
-from agents.weather_agent import summarize_weather_for_swimming
-from agents.activities_agent import suggest_activities_for_weekend
-from agents.lodging_agent import suggest_lodgings_for_activities
-from agents.scenario_agent import build_scenarios
+from agents.orchestrator_agent import run_planning_pipeline
 
 
 def main() -> None:
@@ -12,31 +7,24 @@ def main() -> None:
         "Décris ton week-end idéal (budget, envies, dates, etc.) :\n> "
     )
 
-    # Agent 1 : Analyse de la demande
-    constraints = analyze_user_request(user_message)
+    result = run_planning_pipeline(user_message)
+
+    constraints = result["constraints"]
+    budget_allocation = result["budget_allocation"]
+    weather_summary = result["weather_summary"]
+    activities = result["activities"]
+    lodgings = result["lodgings"]
+    scenarios = result["scenarios"]
+    final_text = result["final_text"]
+
     print("\nContraintes extraites par l'agent :")
     print(constraints)
 
-    # Agent 2 : Budget & contraintes
-    budget_allocation = compute_budget_allocation(constraints)
     print("\nRépartition du budget :")
     print(budget_allocation)
 
-    # Agent 3 : Météo (pour l'instant, on force Paris)
-    weather_summary = summarize_weather_for_swimming(
-        city_name="Paris",
-        forecast_days=2,
-    )
     print("\nRésumé météo :")
     print(weather_summary)
-
-    # Agent 4 : Activités compatibles
-    activities = suggest_activities_for_weekend(
-        constraints=constraints,
-        budget_allocation=budget_allocation,
-        weather_summary=weather_summary,
-        max_results=3,
-    )
 
     print("\nActivités suggérées :")
     if not activities:
@@ -47,13 +35,6 @@ def main() -> None:
                 f"- {activity['name']} "
                 f"({activity['type']}) ~ {activity['price_estimate']}€"
             )
-
-    # Agent 5 : Logements possibles proches des activités
-    lodgings = suggest_lodgings_for_activities(
-        activities=activities,
-        budget_allocation=budget_allocation,
-        max_results_per_activity=2,
-    )
 
     print("\nLogements suggérés :")
     if not lodgings:
@@ -68,15 +49,6 @@ def main() -> None:
                 f"= {lodging['total_price']}€ "
                 f"[note {lodging['rating']}]"
             )
-
-    # Agent 6 : Construction de scénarios complets
-    scenarios = build_scenarios(
-        constraints=constraints,
-        budget_allocation=budget_allocation,
-        activities=activities,
-        lodgings=lodgings,
-        max_scenarios=3,
-    )
 
     print("\nScénarios proposés :")
     if not scenarios:
@@ -96,6 +68,9 @@ def main() -> None:
             print(
                 f"  - Transport estimé : {details['transport_estimate']}€"
             )
+
+    print("\n=== Proposition finale ===")
+    print(final_text)
 
 
 if __name__ == "__main__":
