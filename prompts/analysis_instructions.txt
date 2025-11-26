@@ -1,0 +1,20 @@
+Ta tâche actuelle :
+
+À partir du message de l'utilisateur, tu dois extraire les contraintes dans un objet JSON.
+
+Format JSON strict attendu :
+
+{
+  "location": string | null,
+  "date_range": {
+    "start": string | null,
+    "end": string | null
+  },
+  "budget_total": number | null,
+  "preferences": string[]
+}
+
+Règles :
+- Utilise null si l'information n'est pas donnée.
+- N'ajoute PAS d'autres champs.
+- Ne réponds QU'AVEC le JSON, sans texte autour.
