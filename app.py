@@ -1,6 +1,7 @@
 import streamlit as st
 
 from agents.orchestrator_agent import run_planning_pipeline
+from agents.speech_to_text_agent import transcribe_audio_file
 
 
 def main() -> None:
@@ -12,10 +13,12 @@ def main() -> None:
 
     st.title("Planificateur de week-end étudiant à Paris 🗼")
     st.write(
-        "Décris ton week-end idéal (budget, envies, dates, etc.). "
+        "Décris ton week-end idéal (budget, envies, dates, etc.), "
+        "ou envoie un message vocal. "
         "L'assistant va te proposer des options réalistes en respectant ton budget."
     )
 
+    # Zone texte classique
     user_message = st.text_area(
         "Décris ton week-end idéal :",
         placeholder=(
@@ -25,15 +28,45 @@ def main() -> None:
         height=150,
     )
 
+    # Upload d'un message vocal (speech-to-text)
+    uploaded_audio = st.file_uploader(
+        "Ou envoie un message vocal (mp3, wav, m4a, ogg...) 🎙️",
+        type=["mp3", "wav", "m4a", "ogg", "webm"],
+    )
+
     if st.button("Planifier mon week-end ✨"):
-        if not user_message.strip():
-            st.warning("Merci de décrire ton week-end avant de lancer la planification.")
+        if not user_message.strip() and uploaded_audio is None:
+            st.warning(
+                "Écris ton message OU envoie un vocal avant de lancer la planification 🙂"
+            )
+            return
+
+        final_user_text = user_message.strip()
+
+        # Si pas de texte mais un audio → on fait la transcription
+        if not final_user_text and uploaded_audio is not None:
+            with st.spinner("Je transcris ton message vocal avec Groq... 🎧"):
+                # Important : repositionner le curseur au début
+                uploaded_audio.seek(0)
+                transcript = transcribe_audio_file(
+                    file_obj=uploaded_audio,
+                    filename=uploaded_audio.name,
+                    language="fr",
+                )
+            st.info(f"Transcription de ton vocal :\n\n> {transcript}")
+            final_user_text = transcript
+
+        # Si on a à la fois du texte et un audio, on priorise le texte saisi
+        if not final_user_text:
+            st.error(
+                "Je n'ai pas réussi à récupérer de texte. "
+                "Réessaie en dictant plus clairement ou en écrivant ton message."
+            )
             return
 
         with st.spinner("Je prépare tes options de week-end..."):
-            result = run_planning_pipeline(user_message)
+            result = run_planning_pipeline(final_user_text)
 
-        # On ne montre plus que ce qui est utile pour l'utilisateur
         weather_summary = result["weather_summary"]
         final_text = result["final_text"]
 
@@ -46,7 +79,8 @@ def main() -> None:
 
         if swimming_reco == "OK":
             st.success(
-                f"Bonne nouvelle : la météo est globalement **favorable** pour profiter de l'extérieur à {location} 🌞"
+                f"Bonne nouvelle : la météo est globalement **favorable** "
+                f"pour profiter de l'extérieur à {location} 🌞"
             )
         else:
             st.info(
@@ -54,10 +88,11 @@ def main() -> None:
                 "On mise surtout sur des activités qui restent sympas même sans grand soleil 🙂"
             )
 
-        # Petit résumé jour par jour avec des emojis
+        # Petit résumé jour par jour avec des emojis + températures
         for day in details:
             date_str = day.get("date", "?")
             status = day.get("status", "").lower()
+            max_temp_c = day.get("max_temp_c", "?")
 
             if status == "ensoleillé":
                 icon = "☀️"
@@ -69,14 +104,15 @@ def main() -> None:
                 icon = "⛅️"
                 label = "Nuageux"
 
-            st.markdown(f"- {icon} `{date_str}` : **{label}**")
+            st.markdown(
+                f"- {icon} `{date_str}` : **{label}** — **{max_temp_c}°C**"
+            )
 
         st.markdown("---")
 
         # ✨ Bloc final : proposition pour l'utilisateur
         st.subheader("✨ Tes options de week-end")
 
-        # Le texte déjà rédigé par l'agent de présentation (LLM)
         st.markdown(final_text)
 
 

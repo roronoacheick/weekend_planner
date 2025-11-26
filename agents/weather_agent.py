@@ -56,7 +56,7 @@ def summarize_weather_for_swimming(
     max_temps: List[float] = daily_data.get("temperature_2m_max", [])
     precipitations: List[float] = daily_data.get("precipitation_sum", [])
 
-    details: List[Dict[str, str]] = []
+    details: List[Dict[str, Any]] = []
 
     good_days_count = 0
 
@@ -76,6 +76,7 @@ def summarize_weather_for_swimming(
             {
                 "date": date_str,
                 "status": status,
+                "max_temp_c": round(max_temp),
             }
         )
 
