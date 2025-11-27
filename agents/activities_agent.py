@@ -1,40 +1,43 @@
 from typing import List, Dict, Any
+from pathlib import Path
+import json
+
+from groq import Groq
+
+from config import GROQ_API_KEY
 
 
-CANDIDATE_ACTIVITIES: List[Dict[str, Any]] = [
-    {
-        "name": "Piscine municipale pas chère",
-        "city": "Paris",
-        "price_estimate": 6,
-        "type": "piscine intérieure",
-        "is_outdoor": False,
-        "duration_hours": 2,
-    },
-    {
-        "name": "Aquaboulevard",
-        "city": "Paris",
-        "price_estimate": 35,
-        "type": "parc aquatique",
-        "is_outdoor": True,
-        "duration_hours": 4,
-    },
-    {
-        "name": "Soirée bowling étudiant",
-        "city": "Paris",
-        "price_estimate": 15,
-        "type": "bowling",
-        "is_outdoor": False,
-        "duration_hours": 3,
-    },
-    {
-        "name": "Escape game entre amis",
-        "city": "Paris",
-        "price_estimate": 25,
-        "type": "escape game",
-        "is_outdoor": False,
-        "duration_hours": 1.5,
-    },
-]
+client = Groq(api_key=GROQ_API_KEY)
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+PROMPT_FILE_PATH = BASE_DIR / "prompts" / "prompt.txt"
+CONTEXT_FILE_PATH = BASE_DIR / "prompts" / "context.txt"
+ACTIVITIES_INSTRUCTIONS_FILE_PATH = (
+    BASE_DIR / "prompts" / "activities_web_instructions.txt"
+)
+
+
+def load_text_file(file_path: Path) -> str:
+    
+    return file_path.read_text(encoding="utf-8")
+
+
+def build_system_message_for_activities() -> str:
+    
+    base_prompt = load_text_file(PROMPT_FILE_PATH)
+    base_context = load_text_file(CONTEXT_FILE_PATH)
+    activities_instructions = load_text_file(ACTIVITIES_INSTRUCTIONS_FILE_PATH)
+
+    full_system_message = (
+        base_prompt
+        + "\n\n"
+        + base_context
+        + "\n\n"
+        + activities_instructions
+    )
+
+    return full_system_message
 
 
 def suggest_activities_for_weekend(
@@ -44,51 +47,41 @@ def suggest_activities_for_weekend(
     max_results: int = 3,
 ) -> List[Dict[str, Any]]:
     
-    max_activities_budget = budget_allocation.get("max_activities", 0)
-    user_preferences = constraints.get("preferences", [])
-    location = constraints.get("location", "Paris")
+    system_message = build_system_message_for_activities()
 
-    swimming_recommendation = weather_summary.get("swimming_recommendation", "Moyen")
+    # On envoie au modèle un contexte structuré
+    context_payload = {
+        "constraints": constraints,
+        "budget_allocation": budget_allocation,
+        "weather_summary": weather_summary,
+        "max_results": max_results,
+    }
 
-    filtered_activities: List[Dict[str, Any]] = []
+    user_content = (
+        "Voici les données JSON du contexte (contraintes, budget, météo) "
+        "pour proposer des activités adaptées :\n\n"
+        + json.dumps(context_payload, ensure_ascii=False, indent=2)
+    )
 
-    for activity in CANDIDATE_ACTIVITIES:
-        if activity["price_estimate"] > max_activities_budget:
-            continue
+    # ⚡ On utilise groq/compound-mini pour réduire la latence
+    chat_completion = client.chat.completions.create(
+        model="groq/compound-mini",
+        messages=[
+            {"role": "system", "content": system_message},
+            {"role": "user", "content": user_content},
+        ],
+        response_format={"type": "json_object"},
+    )
 
-        if activity["city"] not in (location, "Paris"):
-            continue
+    json_content = chat_completion.choices[0].message.content
 
-        is_swimming_activity = "piscine" in activity["type"] or "baignade" in activity["type"]
+    data = json.loads(json_content)
 
-        if is_swimming_activity and activity["is_outdoor"] and swimming_recommendation != "OK":
-            continue
+    raw_activities = data.get("activities", [])
 
-        if user_preferences:
-            preferences_text = " ".join(user_preferences).lower()
-            type_text = activity["type"].lower()
+    activities: List[Dict[str, Any]] = []
 
-            if (
-                "baignade" in preferences_text
-                or "piscine" in preferences_text
-                or "se baigner" in preferences_text
-            ):
-                if not is_swimming_activity:
-                    continue
-            elif (
-                "sortir" in preferences_text
-                or "amis" in preferences_text
-                or "soirée" in preferences_text
-            ):
-                if not (
-                    "bowling" in type_text
-                    or "escape game" in type_text
-                ):
-                    continue
+    for activity in raw_activities[:max_results]:
+        activities.append(activity)
 
-        filtered_activities.append(activity)
-
-        if len(filtered_activities) >= max_results:
-            break
-
-    return filtered_activities
+    return activities
