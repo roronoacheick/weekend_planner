@@ -1,44 +1,43 @@
 from typing import List, Dict, Any
+from pathlib import Path
+import json
+
+from groq import Groq
+
+from config import GROQ_API_KEY
 
 
-CANDIDATE_LODGINGS: List[Dict[str, Any]] = [
-    {
-        "lodging_name": "Auberge de jeunesse Porte de Versailles",
-        "city": "Paris",
-        "near_activity": "Aquaboulevard",
-        "platform": "Booking",
-        "price_per_night": 35,
-        "nights": 1,
-        "rating": 7.8,
-    },
-    {
-        "lodging_name": "Studio Airbnb près de la base de loisirs",
-        "city": "Cergy",
-        "near_activity": "Base de loisirs de Cergy",
-        "platform": "Airbnb",
-        "price_per_night": 45,
-        "nights": 1,
-        "rating": 4.6,
-    },
-    {
-        "lodging_name": "Auberge étudiante République",
-        "city": "Paris",
-        "near_activity": None,
-        "platform": "Auberge",
-        "price_per_night": 30,
-        "nights": 1,
-        "rating": 8.2,
-    },
-    {
-        "lodging_name": "Chambre simple près d'un bowling",
-        "city": "Paris",
-        "near_activity": "Soirée bowling étudiant",
-        "platform": "Booking",
-        "price_per_night": 40,
-        "nights": 1,
-        "rating": 7.5,
-    },
-]
+client = Groq(api_key=GROQ_API_KEY)
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+PROMPT_FILE_PATH = BASE_DIR / "prompts" / "prompt.txt"
+CONTEXT_FILE_PATH = BASE_DIR / "prompts" / "context.txt"
+LODGING_INSTRUCTIONS_FILE_PATH = (
+    BASE_DIR / "prompts" / "lodging_web_instructions.txt"
+)
+
+
+def load_text_file(file_path: Path) -> str:
+    
+    return file_path.read_text(encoding="utf-8")
+
+
+def build_system_message_for_lodging() -> str:
+   
+    base_prompt = load_text_file(PROMPT_FILE_PATH)
+    base_context = load_text_file(CONTEXT_FILE_PATH)
+    lodging_instructions = load_text_file(LODGING_INSTRUCTIONS_FILE_PATH)
+
+    full_system_message = (
+        base_prompt
+        + "\n\n"
+        + base_context
+        + "\n\n"
+        + lodging_instructions
+    )
+
+    return full_system_message
 
 
 def suggest_lodgings_for_activities(
@@ -47,49 +46,61 @@ def suggest_lodgings_for_activities(
     max_results_per_activity: int = 2,
 ) -> List[Dict[str, Any]]:
    
+    if not activities:
+        return []
+
+    system_message = build_system_message_for_lodging()
+
     max_lodging_budget = budget_allocation.get("max_lodging", 0)
 
-    suggested_lodgings: List[Dict[str, Any]] = []
+    context_payload = {
+        "activities": activities,
+        "budget_allocation": budget_allocation,
+        "max_lodging_budget": max_lodging_budget,
+        "max_results_per_activity": max_results_per_activity,
+    }
 
-    if not activities:
-        return suggested_lodgings
+    user_content = (
+        "Voici les données JSON du contexte (activités, budget logement) "
+        "pour proposer des logements adaptés :\n\n"
+        + json.dumps(context_payload, ensure_ascii=False, indent=2)
+    )
 
-    for activity in activities:
-        activity_city = activity.get("city")
-        activity_name = activity.get("name")
+    chat_completion = client.chat.completions.create(
+        model="groq/compound-mini",
+        messages=[
+            {"role": "system", "content": system_message},
+            {"role": "user", "content": user_content},
+        ],
+        response_format={"type": "json_object"},
+    )
 
-        lodgings_for_activity: List[Dict[str, Any]] = []
+    json_content = chat_completion.choices[0].message.content
 
-        for lodging in CANDIDATE_LODGINGS:
-            if lodging["city"] != activity_city:
-                continue
+    data = json.loads(json_content)
 
-            total_price = lodging["price_per_night"] * lodging["nights"]
+    raw_lodgings = data.get("lodgings", [])
 
-            if total_price > max_lodging_budget:
-                continue
+    lodgings: List[Dict[str, Any]] = []
 
-            near_activity = lodging.get("near_activity")
+    for lodging in raw_lodgings:
+        nights = lodging.get("nights", 1)
+        price_per_night = lodging.get("price_per_night", 0)
+        total_price = lodging.get("total_price", price_per_night * nights)
 
-            if near_activity is not None and near_activity != activity_name:
-                continue
+        lodging_option: Dict[str, Any] = {
+            "for_activity": lodging.get("for_activity"),
+            "lodging_name": lodging.get("lodging_name"),
+            "platform": lodging.get("platform"),
+            "city": lodging.get("city"),
+            "price_per_night": price_per_night,
+            "nights": nights,
+            "total_price": total_price,
+            "rating": lodging.get("rating", 0),
+            # on garde aussi l'URL si on veut l'utiliser plus tard dans l'UI
+            "url": lodging.get("url"),
+        }
 
-            lodging_option: Dict[str, Any] = {
-                "for_activity": activity_name,
-                "lodging_name": lodging["lodging_name"],
-                "platform": lodging["platform"],
-                "city": lodging["city"],
-                "price_per_night": lodging["price_per_night"],
-                "nights": lodging["nights"],
-                "total_price": total_price,
-                "rating": lodging["rating"],
-            }
+        lodgings.append(lodging_option)
 
-            lodgings_for_activity.append(lodging_option)
-
-            if len(lodgings_for_activity) >= max_results_per_activity:
-                break
-
-        suggested_lodgings.extend(lodgings_for_activity)
-
-    return suggested_lodgings
+    return lodgings

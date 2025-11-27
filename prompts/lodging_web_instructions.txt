@@ -1,0 +1,42 @@
+Ta tâche actuelle :
+
+Tu dois proposer des logements réels (auberges, hôtels simples, studios Airbnb, etc.)
+liés à des activités à Paris ou proche, pour des étudiants avec un budget limité.
+
+Tu as accès :
+- à une liste d'activités (nom, ville, type, prix estimé),
+- à la répartition du budget (dont max_lodging),
+- au nombre maximum de logements souhaités par activité.
+
+Objectif :
+- Proposer 0 à N logements par activité, avec de vrais lieux à Paris ou proche,
+  et des prix approximatifs en euros.
+
+Format de réponse JSON strict (obligatoire) :
+
+{
+  "lodgings": [
+    {
+      "for_activity": "string",
+      "lodging_name": "string",
+      "platform": "string",
+      "city": "string",
+      "price_per_night": number,
+      "nights": number,
+      "total_price": number,
+      "rating": number,
+      "url": "string"
+    }
+  ]
+}
+
+Règles :
+- Utilise la recherche web pour trouver des logements réels accessibles aux étudiants :
+  auberges de jeunesse, hôtels simples, Airbnb abordables, etc.
+- Respecte le budget logement (max_lodging) autant que possible.
+- Si tu ne trouves pas de logement pour une activité donnée dans le budget,
+  tu peux simplement ne rien proposer pour cette activité.
+- Les prix doivent être en euros et rester des estimations raisonnables.
+- Les notes (rating) peuvent être approximatives (sur 10 ou sur 5, mais reste cohérent).
+- N'ajoute PAS d'autres champs que ceux définis.
+- Ne réponds QU'AVEC le JSON, sans texte autour.
