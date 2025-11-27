@@ -13,12 +13,12 @@ def main() -> None:
 
     st.title("Planificateur de week-end étudiant à Paris 🗼")
     st.write(
-        "Décris ton week-end idéal (budget, envies, dates, etc.), "
-        "ou envoie un message vocal. "
+        "Décris ton week-end idéal (budget, envies, dates, etc.) "
+        "ou parle directement au micro. "
         "L'assistant va te proposer des options réalistes en respectant ton budget."
     )
 
-    # Zone texte classique
+    # 📝 Zone texte classique
     user_message = st.text_area(
         "Décris ton week-end idéal :",
         placeholder=(
@@ -28,35 +28,30 @@ def main() -> None:
         height=150,
     )
 
-    # Upload d'un message vocal (speech-to-text)
-    uploaded_audio = st.file_uploader(
-        "Ou envoie un message vocal (mp3, wav, m4a, ogg...) 🎙️",
-        type=["mp3", "wav", "m4a", "ogg", "webm"],
-    )
+    # 🎙️ Enregistrement direct au micro (pas besoin d'uploader un fichier)
+    mic_audio = st.audio_input("…ou clique ici et parle directement 🎙️")
 
     if st.button("Planifier mon week-end ✨"):
-        if not user_message.strip() and uploaded_audio is None:
+        if not user_message.strip() and mic_audio is None:
             st.warning(
-                "Écris ton message OU envoie un vocal avant de lancer la planification 🙂"
+                "Écris ton message OU parle dans le micro avant de lancer la planification 🙂"
             )
             return
 
         final_user_text = user_message.strip()
 
-        # Si pas de texte mais un audio → on fait la transcription
-        if not final_user_text and uploaded_audio is not None:
+        # Si pas de texte mais un enregistrement micro → on fait la transcription
+        if not final_user_text and mic_audio is not None:
             with st.spinner("Je transcris ton message vocal avec Groq... 🎧"):
-                # Important : repositionner le curseur au début
-                uploaded_audio.seek(0)
+                mic_audio.seek(0)
                 transcript = transcribe_audio_file(
-                    file_obj=uploaded_audio,
-                    filename=uploaded_audio.name,
+                    file_obj=mic_audio,
+                    filename="mic_recording.webm",  # nom arbitraire
                     language="fr",
                 )
             st.info(f"Transcription de ton vocal :\n\n> {transcript}")
             final_user_text = transcript
 
-        # Si on a à la fois du texte et un audio, on priorise le texte saisi
         if not final_user_text:
             st.error(
                 "Je n'ai pas réussi à récupérer de texte. "
